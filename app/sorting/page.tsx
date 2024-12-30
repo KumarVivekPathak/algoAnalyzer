@@ -103,11 +103,157 @@ const SortingVisualizer = () => {
     setSorting(false);
   };
 
+  const bubbleSort = async () => {
+    setSorting(true);
+    let arr = [...array];
+    for (let i = 0; i < arr.length; i++) {
+      for (let j = 0; j < arr.length - i - 1; j++) {
+        setCurrentStep({ comparing: [j, j + 1], swapping: [] });
+        await new Promise(resolve => setTimeout(resolve, speed));
+        
+        if (arr[j] > arr[j + 1]) {
+          setCurrentStep({ comparing: [], swapping: [j, j + 1] });
+          await new Promise(resolve => setTimeout(resolve, speed));
+          [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
+          setArray([...arr]);
+        }
+      }
+    }
+    setCurrentStep(null);
+    setSorting(false);
+  };
+
+  const merge = async (arr: number[], left: number, mid: number, right: number) => {
+    const n1 = mid - left + 1;
+    const n2 = right - mid;
+    const L = arr.slice(left, mid + 1);
+    const R = arr.slice(mid + 1, right + 1);
+    
+    let i = 0, j = 0, k = left;
+    
+    while (i < n1 && j < n2) {
+      setCurrentStep({ comparing: [left + i, mid + 1 + j], swapping: [] });
+      await new Promise(resolve => setTimeout(resolve, speed));
+      
+      if (L[i] <= R[j]) {
+        setCurrentStep({ comparing: [], swapping: [k] });
+        arr[k] = L[i];
+        i++;
+      } else {
+        setCurrentStep({ comparing: [], swapping: [k] });
+        arr[k] = R[j];
+        j++;
+      }
+      setArray([...arr]);
+      k++;
+      await new Promise(resolve => setTimeout(resolve, speed));
+    }
+    
+    while (i < n1) {
+      setCurrentStep({ comparing: [], swapping: [k] });
+      arr[k] = L[i];
+      i++;
+      k++;
+      setArray([...arr]);
+      await new Promise(resolve => setTimeout(resolve, speed));
+    }
+    
+    while (j < n2) {
+      setCurrentStep({ comparing: [], swapping: [k] });
+      arr[k] = R[j];
+      j++;
+      k++;
+      setArray([...arr]);
+      await new Promise(resolve => setTimeout(resolve, speed));
+    }
+  };
+
+  const mergeSortHelper = async (arr: number[], left: number, right: number) => {
+    if (left < right) {
+      const mid = Math.floor(left + (right - left) / 2);
+      await mergeSortHelper(arr, left, mid);
+      await mergeSortHelper(arr, mid + 1, right);
+      await merge(arr, left, mid, right);
+    }
+  };
+
+  const mergeSort = async () => {
+    setSorting(true);
+    let arr = [...array];
+    await mergeSortHelper(arr, 0, arr.length - 1);
+    setCurrentStep(null);
+    setSorting(false);
+  };
+
+  const insertionSort = async () => {
+    setSorting(true);
+    let arr = [...array];
+    for (let i = 1; i < arr.length; i++) {
+      let key = arr[i];
+      let j = i - 1;
+      while (j >= 0 && arr[j] > key) {
+        setCurrentStep({ comparing: [j, i], swapping: [] });
+        await new Promise(resolve => setTimeout(resolve, speed));
+        arr[j + 1] = arr[j];
+        j--;
+      }
+      setCurrentStep({ comparing: [], swapping: [j + 1] });
+      await new Promise(resolve => setTimeout(resolve, speed));
+      arr[j + 1] = key;
+      setArray([...arr]);
+    }
+    setCurrentStep(null);
+    setSorting(false);
+  };
+
+  const heapify = (arr: number[], n: number, i: number) => {
+    let largest = i;
+    const left = 2 * i + 1;
+    const right = 2 * i + 2;
+
+    if (left < n && arr[left] > arr[largest]) {
+      largest = left;
+    }
+    if (right < n && arr[right] > arr[largest]) {
+      largest = right;
+    }
+    if (largest !== i) {
+      [arr[i], arr[largest]] = [arr[largest], arr[i]];
+      heapify(arr, n, largest);
+    }
+  };
+
+  const heapSort = async () => {
+    setSorting(true);
+    let arr = [...array];
+    const n = arr.length;
+    for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
+      heapify(arr, n, i);
+    }
+    for (let i = n - 1; i > 0; i--) {
+      setCurrentStep({ comparing: [], swapping: [0, i] });
+      await new Promise(resolve => setTimeout(resolve, speed));
+      [arr[0], arr[i]] = [arr[i], arr[0]];
+      heapify(arr, i, 0);
+      setArray([...arr]);
+    }
+    setCurrentStep(null);
+    setSorting(false);
+  };
+
   const startSort = () => {
     if (algorithm === 'selection') {
       selectionSort();
     } else if (algorithm === 'quick') {
       quickSort();
+    }else if (algorithm === 'merge') {
+      mergeSort();
+    }else if (algorithm === 'bubble') {
+      bubbleSort();
+    }else if (algorithm === 'insertion') {
+      insertionSort();
+    }else if (algorithm === 'heap') {
+      heapSort();
     }
   };
 
@@ -146,6 +292,10 @@ const SortingVisualizer = () => {
                 <SelectContent className=' bg-gray-600 text-white'>
                   <SelectItem value="selection">Selection Sort</SelectItem>
                   <SelectItem value="quick">Quick Sort</SelectItem>
+                  <SelectItem value="bubble">Bubble Sort</SelectItem>
+                  <SelectItem value="merge">Merge Sort</SelectItem>
+                  <SelectItem value="insertion">Insertion Sort</SelectItem>
+                  <SelectItem value="heap">Heap Sort</SelectItem>
                 </SelectContent>
               </Select>
               
