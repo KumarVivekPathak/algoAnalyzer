@@ -1,158 +1,223 @@
-'use client';
+"use client";
+import { IoHome } from "react-icons/io5";
 
-import React, { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button"; // Assuming `shadcn` button is used
-import { Input } from "@/components/ui/input"; // For rows and columns inputs
 
-type CellType = 'R' | 'F' | 'W' | 'V' | 0;
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import Link from "next/link";
 
-const BackTrackPage = () => {
-  const [rows, setRows] = useState(3);
-  const [columns, setColumns] = useState(3);
-  const [grid, setGrid] = useState<CellType[][]>([]);
-  const [path, setPath] = useState<[number, number][]>([]);
-  const [steps, setSteps] = useState(0);
+const RatInMaze = () => {
+  const [size, setSize] = useState(3);
+  const [grid, setGrid] = useState([]);
+  const [isRunning, setIsRunning] = useState(false);
+  const [isStarted, setIsStarted] = useState(false);
+
+  const START_NODE_ROW = 0;
+  const START_NODE_COL = 0;
 
   useEffect(() => {
-    generateMaze(rows, columns);
-  }, [rows, columns]);
+    initializeGrid();
+  }, [size]);
 
-  const generateMaze = (rows: number, columns: number) => {
-    const newGrid: CellType[][] = Array.from({ length: rows }, () =>
-      Array(columns).fill(0)
+  const createNode = (row: number, col: number) => ({
+    row,
+    col,
+    isStart: row === START_NODE_ROW && col === START_NODE_COL,
+    isFinish: row === size - 1 && col === size - 1,
+    isWall: false,
+    isPath: false,
+    isVisited: false,
+    isCurrent: false,
+  });
+
+  const initializeGrid = () => {
+    const newGrid = Array.from({ length: size }, (_, row) =>
+      Array.from({ length: size }, (_, col) => createNode(row, col))
     );
-    newGrid[0][0] = 'R';
-    newGrid[rows - 1][columns - 1] = 'F';
     setGrid(newGrid);
-    setPath([]);
-    setSteps(0);
+    setIsStarted(false);
   };
 
   const toggleWall = (row: number, col: number) => {
-    setGrid((prev) => {
-      const newGrid = prev.map((r) => [...r]);
-      if (newGrid[row][col] === 'W') {
-        newGrid[row][col] = 0;
-      } else {
-        newGrid[row][col] = 'W';
-      }
-      return newGrid;
-    });
+    if (isRunning) return;
+    if ((row === 0 && col === 0) || (row === size - 1 && col === size - 1))
+      return;
+
+    const newGrid = grid.map((rowArray) =>
+      rowArray.map((node: any) => ({ ...node }))
+    );
+    newGrid[row][col].isWall = !newGrid[row][col].isWall;
+    setGrid(newGrid);
   };
 
-  const backTrack = (
-    grid: CellType[][],
-    i: number,
-    j: number,
-    currentPath: [number, number][] = []
-  ): boolean => {
-    if (
-      i < 0 ||
-      j < 0 ||
-      i >= grid.length ||
-      j >= grid[0].length ||
-      grid[i][j] === 'V' ||
-      grid[i][j] === 'W'
-    )
-      return false;
+  const isSafe = (
+    row: number,
+    col: number,
+    visited: { [x: string]: { [x: string]: any } }
+  ) => {
+    return (
+      row >= 0 &&
+      col >= 0 &&
+      row < size &&
+      col < size &&
+      !grid[row][col].isWall &&
+      !visited[row][col]
+    );
+  };
 
-    currentPath.push([i, j]);
-    if (grid[i][j] === 'F') {
-      setPath([...currentPath]);
+  const solveMaze = async () => {
+    setIsRunning(true);
+    setIsStarted(true);
+    const visited = Array.from({ length: size }, () => Array(size).fill(false));
+    await findPath(0, 0, visited);
+    setIsRunning(false);
+  };
+
+  const findPath = async (row: number, col: number, visited: any[][]) => {
+    if (row === size - 1 && col === size - 1) {
       return true;
     }
 
-    const originalValue = grid[i][j];
-    grid[i][j] = 'V';
+    if (isSafe(row, col, visited)) {
+      visited[row][col] = true;
 
-    const found =
-      backTrack(grid, i + 1, j, currentPath) || // down
-      backTrack(grid, i - 1, j, currentPath) || // up
-      backTrack(grid, i, j + 1, currentPath) || // right
-      backTrack(grid, i, j - 1, currentPath); // left
+      // Visualize current position
+      setGrid((prev) => {
+        const newGrid = prev.map((rowArray) =>
+          rowArray.map((node: any) => ({ ...node, isCurrent: false }))
+        );
+        newGrid[row][col].isPath = true;
+        newGrid[row][col].isCurrent = true;
+        return newGrid;
+      });
 
-    if (!found) {
-      currentPath.pop();
-      grid[i][j] = originalValue;
+      // Add delay for visualization
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // Try all four directions
+      const directions = [
+        [1, 0], // Down
+        [0, 1], // Right
+        [0, -1], // Left
+        [-1, 0], // Up
+      ];
+
+      for (const [dx, dy] of directions) {
+        const newRow = row + dx;
+        const newCol = col + dy;
+
+        if (await findPath(newRow, newCol, visited)) {
+          return true;
+        }
+      }
+
+      // Backtrack
+      visited[row][col] = false;
+      setGrid((prev) => {
+        const newGrid = prev.map((rowArray) =>
+          rowArray.map((node) => ({ ...node }))
+        );
+        newGrid[row][col].isPath = false;
+        newGrid[row][col].isCurrent = false;
+        return newGrid;
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return false;
     }
-    return found;
-  };
 
-  const solveMaze = () => {
-    const gridCopy = grid.map((row) => [...row]);
-    const startRow = gridCopy.findIndex((row) => row.includes('R'));
-    const startCol = gridCopy[startRow]?.indexOf('R') ?? -1;
-
-    if (startRow !== -1 && startCol !== -1 && backTrack(gridCopy, startRow, startCol)) {
-      setSteps(0);
-    } else {
-      alert("No path found");
-    }
-  };
-
-  const moveRat = () => {
-    if (steps >= path.length) {
-      alert("Maze solved!");
-      return;
-    }
-    setSteps((prev) => prev + 1);
+    return false;
   };
 
   return (
-    <div className="p-4 space-y-4">
-      <h1 className="text-2xl font-bold text-center">Rat in a Maze</h1>
-      <div className="flex space-x-2">
-        <div>
-          <label>Rows:</label>
+    <div className="flex flex-col items-center p-4 space-y-4 min-h-screen bg-gradient-to-t from-gray-600 to-gray-900">
+      <nav className="  w-full p-4">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div className="flex self-start space-x-2">
+            <Link href="/" className="text-white text-xl">
+            <IoHome />
+            </Link>
+          </div>
+
+          <h1
+            className="text-2xl font-bold text-white mx-auto"
+            style={{ fontFamily: "Times New Roman" }}
+          >
+            Rat in a Maze
+          </h1>
+          <div className="w-12"></div>
+        </div>
+      </nav>
+
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-2">
+          <label className="text-white">Grid Size:</label>
           <Input
             type="number"
-            value={rows}
-            onChange={(e) => setRows(Number(e.target.value))}
-            min={1}
+            value={size}
+            onChange={(e) =>
+              setSize(Math.max(2, Math.min(10, parseInt(e.target.value) || 2)))
+            }
+            min="2"
+            max="10"
+            disabled={isRunning}
+            className="w-20 px-2 py-1 rounded border border-gray-300 bg-gray-800 text-white focus:outline-none focus:ring focus:ring-violet-500"
           />
         </div>
-        <div>
-          <label>Columns:</label>
-          <Input
-            type="number"
-            value={columns}
-            onChange={(e) => setColumns(Number(e.target.value))}
-            min={1}
-          />
-        </div>
-        <Button onClick={() => generateMaze(rows, columns)}>Generate Maze</Button>
-        <Button onClick={solveMaze}>Solve</Button>
+        <Button
+          onClick={initializeGrid}
+          disabled={isRunning}
+          className="px-4 py-2 bg-violet-600 text-white rounded hover:bg-violet-500 disabled:opacity-50"
+        >
+          Reset Grid
+        </Button>
+        <Button
+          onClick={solveMaze}
+          disabled={isRunning || isStarted}
+          className="px-4 py-2 bg-violet-600 text-white rounded hover:bg-violet-500 disabled:opacity-50"
+        >
+          Solve Maze
+        </Button>
       </div>
+
       <div
-        className="grid gap-1"
+        className="grid p-5 gap-1 max-w-full"
         style={{
-          gridTemplateColumns: `repeat(${columns}, 2.5rem)`,
-          gridTemplateRows: `repeat(${rows}, 2.5rem)`,
+          gridTemplateColumns: `repeat(${size}, minmax(2.5rem, 1fr))`,
         }}
       >
-        {grid.map((row, rowIndex) =>
-          row.map((cell, colIndex) => (
+        {grid.map((row, rowIdx) =>
+          row.map((node, colIdx) => (
             <div
-              key={`${rowIndex}-${colIndex}`}
-              className={`border flex items-center justify-center ${
-                cell === 'W'
-                  ? 'bg-black'
-                  : cell === 'R'
-                  ? 'bg-yellow-300'
-                  : cell === 'F'
-                  ? 'bg-green-300'
-                  : ''
-              }`}
-              onClick={() => toggleWall(rowIndex, colIndex)}
+              key={`${rowIdx}-${colIdx}`}
+              onClick={() => toggleWall(rowIdx, colIdx)}
+              className={`w-16 h-16 border border-gray-300 cursor-pointer transition-colors
+                        flex items-center justify-center
+                        ${node.isWall ? "bg-gray-800" : ""}
+                        ${node.isStart ? "bg-green-500" : ""}
+                        ${node.isFinish ? "bg-red-500" : ""}
+                        ${
+                          node.isPath && !node.isStart && !node.isFinish
+                            ? "bg-yellow-200"
+                            : ""
+                        }
+                        ${node.isCurrent ? "bg-blue-400" : ""}
+                      `}
             >
-              {cell === 'R' && '🐭'}
-              {cell === 'F' && '🍎'}
+              {node.isStart && "🐭"}
+              {node.isFinish && "🧀"}
             </div>
           ))
         )}
+      </div>
+
+      <div className="text-sm mt-4 text-white text-center">
+        <p>Click on cells to create/remove walls</p>
+        <p>🐭 = Start, 🧀 = End</p>
       </div>
     </div>
   );
 };
 
-export default BackTrackPage;
+export default RatInMaze;

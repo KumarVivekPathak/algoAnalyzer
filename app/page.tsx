@@ -37,14 +37,14 @@ export default function Home() {
               className="bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg text-center transition-colors">
           Backtracking Visualizer
         </Link>
-        <Link href="/sliding-window"
+        {/* <Link href="/sliding-window"
               className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-6 rounded-lg text-center transition-colors">
           Sliding Window
         </Link>
         <Link href="/dynamic-programming"
               className="bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-6 rounded-lg text-center transition-colors">
           Dynamic Programming
-        </Link>
+        </Link> */}
       </div>
     </div>
   );
