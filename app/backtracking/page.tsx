@@ -1,15 +1,25 @@
 "use client";
+
 import { IoHome } from "react-icons/io5";
-
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 
+interface Node {
+  row: number;
+  col: number;
+  isStart: boolean;
+  isFinish: boolean;
+  isWall: boolean;
+  isPath: boolean;
+  isVisited: boolean;
+  isCurrent: boolean;
+}
+
 const RatInMaze = () => {
   const [size, setSize] = useState(3);
-  const [grid, setGrid] = useState([]);
+  const [grid, setGrid] = useState<Node[][]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [isStarted, setIsStarted] = useState(false);
 
@@ -20,7 +30,7 @@ const RatInMaze = () => {
     initializeGrid();
   }, [size]);
 
-  const createNode = (row: number, col: number) => ({
+  const createNode = (row: number, col: number): Node => ({
     row,
     col,
     isStart: row === START_NODE_ROW && col === START_NODE_COL,
@@ -32,7 +42,7 @@ const RatInMaze = () => {
   });
 
   const initializeGrid = () => {
-    const newGrid = Array.from({ length: size }, (_, row) =>
+    const newGrid: Node[][] = Array.from({ length: size }, (_, row) =>
       Array.from({ length: size }, (_, col) => createNode(row, col))
     );
     setGrid(newGrid);
@@ -44,18 +54,23 @@ const RatInMaze = () => {
     if ((row === 0 && col === 0) || (row === size - 1 && col === size - 1))
       return;
 
-    const newGrid = grid.map((rowArray) =>
-      rowArray.map((node: any) => ({ ...node }))
+    setGrid(prev => 
+      prev.map((rowArray, rowIndex) =>
+        rowArray.map((node, colIndex) => {
+          if (rowIndex === row && colIndex === col) {
+            return { ...node, isWall: !node.isWall };
+          }
+          return node;
+        })
+      )
     );
-    newGrid[row][col].isWall = !newGrid[row][col].isWall;
-    setGrid(newGrid);
   };
 
   const isSafe = (
     row: number,
     col: number,
-    visited: { [x: string]: { [x: string]: any } }
-  ) => {
+    visited: boolean[][]
+  ): boolean => {
     return (
       row >= 0 &&
       col >= 0 &&
@@ -69,12 +84,16 @@ const RatInMaze = () => {
   const solveMaze = async () => {
     setIsRunning(true);
     setIsStarted(true);
-    const visited = Array.from({ length: size }, () => Array(size).fill(false));
+    const visited: boolean[][] = Array.from({ length: size }, () => Array(size).fill(false));
     await findPath(0, 0, visited);
     setIsRunning(false);
   };
 
-  const findPath = async (row: number, col: number, visited: any[][]) => {
+  const findPath = async (
+    row: number, 
+    col: number, 
+    visited: boolean[][]
+  ): Promise<boolean> => {
     if (row === size - 1 && col === size - 1) {
       return true;
     }
@@ -82,25 +101,22 @@ const RatInMaze = () => {
     if (isSafe(row, col, visited)) {
       visited[row][col] = true;
 
-      // Visualize current position
-      setGrid((prev) => {
-        const newGrid = prev.map((rowArray) =>
-          rowArray.map((node: any) => ({ ...node, isCurrent: false }))
+      setGrid(prev => {
+        const newGrid = prev.map(rowArray =>
+          rowArray.map(node => ({ ...node, isCurrent: false }))
         );
         newGrid[row][col].isPath = true;
         newGrid[row][col].isCurrent = true;
         return newGrid;
       });
 
-      // Add delay for visualization
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-      // Try all four directions
-      const directions = [
-        [1, 0], // Down
-        [0, 1], // Right
+      const directions: [number, number][] = [
+        [1, 0],  // Down
+        [0, 1],  // Right
         [0, -1], // Left
-        [-1, 0], // Up
+        [-1, 0]  // Up
       ];
 
       for (const [dx, dy] of directions) {
@@ -112,11 +128,10 @@ const RatInMaze = () => {
         }
       }
 
-      // Backtrack
       visited[row][col] = false;
-      setGrid((prev) => {
-        const newGrid = prev.map((rowArray) =>
-          rowArray.map((node) => ({ ...node }))
+      setGrid(prev => {
+        const newGrid = prev.map(rowArray =>
+          rowArray.map(node => ({ ...node }))
         );
         newGrid[row][col].isPath = false;
         newGrid[row][col].isCurrent = false;
@@ -132,11 +147,11 @@ const RatInMaze = () => {
 
   return (
     <div className="flex flex-col items-center p-4 space-y-4 min-h-screen bg-gradient-to-t from-gray-600 to-gray-900">
-      <nav className="  w-full p-4">
+      <nav className="w-full p-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex self-start space-x-2">
             <Link href="/" className="text-white text-xl">
-            <IoHome />
+              <IoHome />
             </Link>
           </div>
 
@@ -194,7 +209,7 @@ const RatInMaze = () => {
               onClick={() => toggleWall(rowIdx, colIdx)}
               className={`w-16 h-16 border border-gray-300 cursor-pointer transition-colors
                         flex items-center justify-center
-                        ${node.isWall ? "bg-gray-800" : ""}
+                        ${node.isWall ? "bg-black" : ""}
                         ${node.isStart ? "bg-green-500" : ""}
                         ${node.isFinish ? "bg-red-500" : ""}
                         ${
